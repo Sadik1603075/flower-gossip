@@ -1,0 +1,211 @@
+
+version: '3.8'
+
+services:
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    deploy:
+      restart_policy:
+        condition: on-failure
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - cadvisor
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: cadvisor
+    privileged: true
+    deploy:
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - 3000:3000
+    deploy:
+      restart_policy:
+        condition: on-failure
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./config/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./config/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+      - cadvisor
+    command:
+      - --config=/etc/grafana/grafana.ini
+
+  # Fault-Tolerant Server Nodes
+  server-1:
+    container_name: server-1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python fault_tolerant_server.py --node_id=server-1 --port=8080 --gossip_port=9001 --num_rounds=50
+    environment:
+      FLASK_RUN_PORT: 6000
+      DOCKER_HOST_IP: host.docker.internal
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "6000:6000"
+      - "8080:8080"
+      - "8001:8000"
+      - "9001:9001"
+    stop_signal: SIGINT
+    depends_on:
+      - prometheus
+      - grafana
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  server-2:
+    container_name: server-2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python fault_tolerant_server.py --node_id=server-2 --port=8081 --gossip_port=9002 --num_rounds=50
+    environment:
+      FLASK_RUN_PORT: 6001
+      DOCKER_HOST_IP: host.docker.internal
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "6001:6001"
+      - "8081:8081"
+      - "8002:8000"
+      - "9002:9002"
+    stop_signal: SIGINT
+    depends_on:
+      - prometheus
+      - grafana
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  server-3:
+    container_name: server-3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python fault_tolerant_server.py --node_id=server-3 --port=8082 --gossip_port=9003 --num_rounds=50
+    environment:
+      FLASK_RUN_PORT: 6002
+      DOCKER_HOST_IP: host.docker.internal
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "6002:6002"
+      - "8082:8082"
+      - "8003:8000"
+      - "9003:9003"
+    stop_signal: SIGINT
+    depends_on:
+      - prometheus
+      - grafana
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  client1:
+    container_name: client1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=1 --total_clients=3 --batch_size=32 --learning_rate=0.001
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: "3g"
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7001:7001"
+    depends_on:
+      - server-1
+      - server-2
+      - server-3
+    environment:
+      FLASK_RUN_PORT: 7001
+      container_name: client1
+      DOCKER_HOST_IP: host.docker.internal
+    stop_signal: SIGINT
+
+  client2:
+    container_name: client2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=2 --total_clients=3 --batch_size=256 --learning_rate=0.05
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "6g"
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7002:7002"
+    depends_on:
+      - server-1
+      - server-2
+      - server-3
+    environment:
+      FLASK_RUN_PORT: 7002
+      container_name: client2
+      DOCKER_HOST_IP: host.docker.internal
+    stop_signal: SIGINT
+
+  client3:
+    container_name: client3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=3 --total_clients=3 --batch_size=64 --learning_rate=0.02
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+          memory: "4g"
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7003:7003"
+    depends_on:
+      - server-1
+      - server-2
+      - server-3
+    environment:
+      FLASK_RUN_PORT: 7003
+      container_name: client3
+      DOCKER_HOST_IP: host.docker.internal
+    stop_signal: SIGINT
+volumes:
+  grafana-storage:
