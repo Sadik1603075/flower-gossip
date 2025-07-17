@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Set, Any
 import threading
 import socket
 import pickle
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,9 @@ class GossipProtocol:
         self.running = False
         self.gossip_thread = None
         self.server_socket = None
+        
+        # UDP max payload for chunking
+        self.max_udp_payload = 1400
         
         # Initialize nodes
         self._initialize_nodes()
@@ -255,7 +259,7 @@ class GossipProtocol:
         self.sequence_numbers[self.node_id] += 1
         
     def _send_message(self, message: GossipMessage, targets: List[ServerNode]):
-        """Send a message to target nodes"""
+        """Send a message to target nodes, chunking if needed for UDP, and log message size"""
         message_data = {
             "message_type": message.message_type.value,
             "sender_id": message.sender_id,
@@ -263,15 +267,50 @@ class GossipProtocol:
             "data": message.data,
             "sequence_number": message.sequence_number
         }
-        
+
         serialized_message = pickle.dumps(message_data)
-        
-        for target in targets:
-            try:
-                if self.server_socket:
-                    self.server_socket.sendto(serialized_message, (target.host, target.port))
-            except Exception as e:
-                logger.error(f"Failed to send message to {target.id}: {e}")
+        message_size = len(serialized_message)
+
+        # Log the message size before sending
+        logger.info(
+            f"Gossip: Prepared message of type '{message.message_type.value}' "
+            f"with size {message_size} bytes to {len(targets)} peer(s)"
+        )
+
+        is_udp = self.server_socket is not None and self.server_socket.type == socket.SOCK_DGRAM
+
+        if is_udp and message_size > self.max_udp_payload:
+            msg_id = str(uuid.uuid4())
+            chunks = [serialized_message[i:i+self.max_udp_payload] for i in range(0, message_size, self.max_udp_payload)]
+            total_chunks = len(chunks)
+            logger.warning(f"Message size {message_size} exceeds UDP safe limit, sending in {total_chunks} chunks")
+            for target in targets:
+                for idx, chunk in enumerate(chunks):
+                    chunk_packet = {
+                        "msg_id": msg_id,
+                        "chunk_idx": idx,
+                        "total_chunks": total_chunks,
+                        "payload": chunk
+                    }
+                    try:
+                        if self.server_socket:
+                            logger.debug(
+                                f"Sending chunk {idx+1}/{total_chunks} to {target.id} at {target.host}:{target.port} "
+                                f"(chunk size: {len(chunk)} bytes)"
+                            )
+                            self.server_socket.sendto(pickle.dumps(chunk_packet), (target.host, target.port))
+                    except Exception as e:
+                        logger.error(f"Failed to send chunk {idx+1} to {target.id}: {e}")
+        else:
+            for target in targets:
+                try:
+                    if self.server_socket:
+                        logger.debug(
+                            f"Sending to {target.id} at {target.host}:{target.port} (size: {message_size} bytes)"
+                        )
+                        self.server_socket.sendto(serialized_message, (target.host, target.port))
+                except Exception as e:
+                    logger.error(f"Failed to send message to {target.id}: {e}")
                 
     def _receive_messages(self):
         """Receive and process incoming messages"""

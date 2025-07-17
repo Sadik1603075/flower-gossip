@@ -69,7 +69,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6000:6000"
-      - "8080:8080"
+      - "18080:8080"
       - "8001:8000"
       - "9001:9001"
     stop_signal: SIGINT
@@ -94,7 +94,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6001:6001"
-      - "8081:8081"
+      - "18081:8081"
       - "8002:8000"
       - "9002:9002"
     stop_signal: SIGINT
@@ -119,7 +119,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6002:6002"
-      - "8082:8082"
+      - "18082:8082"
       - "8003:8000"
       - "9003:9003"
     stop_signal: SIGINT
