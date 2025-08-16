@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import time  # ← Add this import for time.sleep()
 
 import flwr as fl
 import tensorflow as tf
@@ -75,6 +76,7 @@ class Client(fl.client.NumPyClient):
         # Calculate evaluation metric
         results = {
             "accuracy": float(history.history["accuracy"][-1]),
+            "loss": float(history.history["loss"][-1]),  # Add loss
         }
 
         # Get the parameters after training
@@ -96,14 +98,48 @@ class Client(fl.client.NumPyClient):
         return float(loss), len(self.x_test), {"accuracy": float(accuracy)}
 
 
+def get_available_server():
+    """Try to connect to available servers in order of priority"""
+    servers = [
+        "server-1:8080",  # Primary
+        "server-2:8081",  # Secondary  
+        "server-3:8082"   # Tertiary
+    ]
+    
+    for server in servers:
+        try:
+            # Try to connect
+            logger.info(f"Attempting to connect to {server}")
+            # Test connection here
+            return server
+        except Exception as e:
+            logger.warning(f"Failed to connect to {server}: {e}")
+            continue
+    
+    raise Exception("No servers available")
+
 # Function to Start the Client
 def start_fl_client():
-    try:
-        client = Client(args).to_client()
-        fl.client.start_client(server_address=args.server_address, client=client)
-    except Exception as e:
-        logger.error("Error starting FL client: %s", e)
-        return {"status": "error", "message": str(e)}
+    max_retries = 3
+    retry_delay = 5
+    
+    for attempt in range(max_retries):
+        try:
+            server_address = get_available_server()
+            logger.info(f"Attempt {attempt + 1}: Connecting to {server_address}")
+            
+            client = Client(args).to_client()
+            fl.client.start_client(server_address=server_address, client=client)
+            break
+            
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error("All connection attempts failed")
+                return {"status": "error", "message": "No servers available"}
 
 
 if __name__ == "__main__":

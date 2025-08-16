@@ -22,10 +22,10 @@ parser.add_argument(
 def create_fault_tolerant_compose(args):
     # Client configurations for heterogeneity
     client_configs = [
-        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.01},
-        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.05},
-        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.02},
-        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.09},
+        {"mem_limit": "1.2g", "batch_size": 32, "cpus": 0.8, "learning_rate": 0.01},
+        {"mem_limit": "1.2g", "batch_size": 32, "cpus": 0.8, "learning_rate": 0.05},
+        {"mem_limit": "1.2g", "batch_size": 32, "cpus": 0.8, "learning_rate": 0.02},
+        {"mem_limit": "1.2g", "batch_size": 32, "cpus": 0.8, "learning_rate": 0.09},
     ]
 
     docker_compose_content = f"""
@@ -109,6 +109,10 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "800m"
 
   server-2:
     container_name: server-2
@@ -134,6 +138,10 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "800m"
 
   server-3:
     container_name: server-3
@@ -159,6 +167,10 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "800m"
 """
 
     # Add client services
@@ -174,12 +186,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python client.py --server_address=server-1:8080 --data_percentage={args.data_percentage} --client_id={i} --total_clients={args.total_clients} --batch_size={config["batch_size"]} --learning_rate={config["learning_rate"]}
+    command: python client.py --data_percentage={args.data_percentage} --client_id={i} --total_clients={args.total_clients} --batch_size={config["batch_size"]} --learning_rate={config["learning_rate"]}
     deploy:
+      restart_policy:
+        condition: on-failure
       resources:
         limits:
-          cpus: "{(config['cpus'])}"
-          memory: "{config['mem_limit']}"
+          cpus: "0.8"
+          memory: "1.2g"
+        reservations:
+          memory: "800m"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock

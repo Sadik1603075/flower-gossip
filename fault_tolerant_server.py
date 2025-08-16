@@ -10,7 +10,7 @@ import flwr as fl
 import numpy as np
 
 from prometheus_client import Gauge, start_http_server
-from strategy.strategy import FedCustom
+from strategy.strategy import FaultTolerantStrategy
 from gossip.gossip_protocol import GossipProtocol
 
 # Initialize Logging
@@ -48,9 +48,9 @@ class FaultTolerantServer:
         
         # Strategy with fault tolerance
         self.strategy = FaultTolerantStrategy(
+            gossip=self.gossip,  # Fix parameter order
             accuracy_gauge=accuracy_gauge,
-            loss_gauge=loss_gauge,
-            gossip_protocol=self.gossip
+            loss_gauge=loss_gauge
         )
         
         # Setup signal handlers for graceful shutdown
@@ -103,13 +103,6 @@ class FaultTolerantServer:
         for node_id, node in self.gossip.nodes.items():
             node_status_gauge.labels(node_id=node_id).set(1 if node.is_alive else 0)
 
-class FaultTolerantStrategy(FedCustom):
-    def __init__(self, accuracy_gauge: Gauge, loss_gauge: Gauge, 
-                 gossip_protocol: GossipProtocol):
-        super().__init__(accuracy_gauge=accuracy_gauge, loss_gauge=loss_gauge)
-        self.gossip = gossip_protocol
-        self.current_round = 0
-        
     def __repr__(self) -> str:
         return "FaultTolerantStrategy"
         
