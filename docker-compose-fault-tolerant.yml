@@ -12,9 +12,9 @@ services:
       restart_policy:
         condition: on-failure
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
+      - --config.file=/etc/prometheus/prometheus-fault-tolerant.yml
     volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus-fault-tolerant.yml:/etc/prometheus/prometheus-fault-tolerant.yml:ro
     depends_on:
       - cadvisor
 
@@ -26,7 +26,7 @@ services:
       restart_policy:
         condition: on-failure
     ports:
-      - "8080:8080"
+      - "8088:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -69,7 +69,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6000:6000"
-      - "18080:8080"
+      - "8080:8080"
       - "8001:8000"
       - "9001:9001"
     stop_signal: SIGINT
@@ -94,7 +94,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6001:6001"
-      - "18081:8081"
+      - "8081:8081"
       - "8002:8000"
       - "9002:9002"
     stop_signal: SIGINT
@@ -119,7 +119,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "6002:6002"
-      - "18082:8082"
+      - "8082:8082"
       - "8003:8000"
       - "9003:9003"
     stop_signal: SIGINT
@@ -135,12 +135,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=1 --total_clients=3 --batch_size=32 --learning_rate=0.001
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=1 --total_clients=3 --batch_size=32 --learning_rate=0.01
     deploy:
       resources:
         limits:
-          cpus: "4"
-          memory: "3g"
+          cpus: "1"
+          memory: "1g"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -161,12 +161,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=2 --total_clients=3 --batch_size=256 --learning_rate=0.05
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=2 --total_clients=3 --batch_size=32 --learning_rate=0.05
     deploy:
       resources:
         limits:
           cpus: "1"
-          memory: "6g"
+          memory: "1g"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -187,12 +187,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=3 --total_clients=3 --batch_size=64 --learning_rate=0.02
+    command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=3 --total_clients=3 --batch_size=32 --learning_rate=0.02
     deploy:
       resources:
         limits:
-          cpus: "3"
-          memory: "4g"
+          cpus: "1"
+          memory: "1g"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock

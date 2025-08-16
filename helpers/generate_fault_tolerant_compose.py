@@ -22,10 +22,10 @@ parser.add_argument(
 def create_fault_tolerant_compose(args):
     # Client configurations for heterogeneity
     client_configs = [
-        {"mem_limit": "3g", "batch_size": 32, "cpus": 4, "learning_rate": 0.001},
-        {"mem_limit": "6g", "batch_size": 256, "cpus": 1, "learning_rate": 0.05},
-        {"mem_limit": "4g", "batch_size": 64, "cpus": 3, "learning_rate": 0.02},
-        {"mem_limit": "5g", "batch_size": 128, "cpus": 2.5, "learning_rate": 0.09},
+        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.01},
+        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.05},
+        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.02},
+        {"mem_limit": "1g", "batch_size": 32, "cpus": 1, "learning_rate": 0.09},
     ]
 
     docker_compose_content = f"""
@@ -42,9 +42,9 @@ services:
       restart_policy:
         condition: on-failure
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
+      - --config.file=/etc/prometheus/prometheus-fault-tolerant.yml
     volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus-fault-tolerant.yml:/etc/prometheus/prometheus-fault-tolerant.yml:ro
     depends_on:
       - cadvisor
 
@@ -56,7 +56,7 @@ services:
       restart_policy:
         condition: on-failure
     ports:
-      - "8080:8080"
+      - "8088:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
