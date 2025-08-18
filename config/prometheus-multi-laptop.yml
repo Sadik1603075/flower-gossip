@@ -1,0 +1,43 @@
+global:
+  scrape_interval:     1s
+  evaluation_interval: 1s
+
+rule_files:
+scrape_configs:
+  - job_name: 'cadvisor'
+    scrape_interval: 1s 
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          group: 'cadvisor'
+          
+  - job_name: 'server-1_metrics'
+    scrape_interval: 1s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['192.168.1.14:8001']  # Laptop 1 - Server-1 metrics
+        labels:
+          group: 'fl_server'
+          node: 'server-1'
+          laptop: 'laptop-1'
+          
+  - job_name: 'server-2_metrics'
+    scrape_interval: 1s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['192.168.1.12:8002']  # Laptop 2 - Server-2 metrics
+        labels:
+          group: 'fl_server'
+          node: 'server-2'
+          laptop: 'laptop-2'
+          
+  - job_name: 'server-3_metrics'
+    scrape_interval: 1s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['192.168.1.13:8003']  # Laptop 3 - Server-3 metrics
+        labels:
+          group: 'fl_server'
+          node: 'server-3'
+          laptop: 'laptop-3'

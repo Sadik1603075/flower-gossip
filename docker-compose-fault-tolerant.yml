@@ -137,10 +137,18 @@ services:
       dockerfile: Dockerfile
     command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=1 --total_clients=3 --batch_size=32 --learning_rate=0.01
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
       resources:
         limits:
           cpus: "1"
           memory: "1g"
+        reservations:
+          cpus: "0.5"
+          memory: "512m"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -155,6 +163,12 @@ services:
       container_name: client1
       DOCKER_HOST_IP: host.docker.internal
     stop_signal: SIGINT
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7001/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   client2:
     container_name: client2
@@ -163,10 +177,18 @@ services:
       dockerfile: Dockerfile
     command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=2 --total_clients=3 --batch_size=32 --learning_rate=0.05
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
       resources:
         limits:
           cpus: "1"
           memory: "1g"
+        reservations:
+          cpus: "0.5"
+          memory: "512m"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -181,6 +203,12 @@ services:
       container_name: client2
       DOCKER_HOST_IP: host.docker.internal
     stop_signal: SIGINT
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7002/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   client3:
     container_name: client3
@@ -189,10 +217,18 @@ services:
       dockerfile: Dockerfile
     command: python client.py --server_address=server-1:8080 --data_percentage=0.6 --client_id=3 --total_clients=3 --batch_size=32 --learning_rate=0.02
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
       resources:
         limits:
           cpus: "1"
           memory: "1g"
+        reservations:
+          cpus: "0.5"
+          memory: "512m"
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -207,5 +243,11 @@ services:
       container_name: client3
       DOCKER_HOST_IP: host.docker.internal
     stop_signal: SIGINT
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7003/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 volumes:
   grafana-storage:

@@ -103,66 +103,7 @@ class FaultTolerantServer:
         for node_id, node in self.gossip.nodes.items():
             node_status_gauge.labels(node_id=node_id).set(1 if node.is_alive else 0)
 
-    def __repr__(self) -> str:
-        return "FaultTolerantStrategy"
-        
-    def aggregate_fit(
-        self,
-        server_round: int,
-        results,
-        failures,
-    ):
-        """Aggregate fit results and propagate via gossip if leader"""
-        self.current_round = server_round
-        
-        # Only the leader performs aggregation
-        if not self.gossip.is_leader():
-            logger.info(f"Node {self.gossip.node_id} is not leader, skipping aggregation")
-            return None, {}
-            
-        logger.info(f"Leader {self.gossip.node_id} performing aggregation for round {server_round}")
-        
-        # Perform standard aggregation
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(
-            server_round, results, failures
-        )
-        
-        if aggregated_parameters:
-            # Update global model and propagate via gossip
-            self.gossip.update_global_model(aggregated_parameters, server_round)
-            logger.info(f"Propagated model update to gossip network for round {server_round}")
-            
-        return aggregated_parameters, aggregated_metrics
-        
-    def aggregate_evaluate(
-        self,
-        server_round: int,
-        results,
-        failures,
-    ):
-        """Aggregate evaluation results"""
-        # Only the leader performs evaluation aggregation
-        if not self.gossip.is_leader():
-            logger.info(f"Node {self.gossip.node_id} is not leader, skipping evaluation aggregation")
-            return None, {}
-            
-        return super().aggregate_evaluate(server_round, results, failures)
-        
-    def configure_fit(
-        self,
-        server_round: int,
-        parameters,
-        client_manager,
-    ):
-        """Configure fit for the next round"""
-        # Get the latest global model from gossip network
-        latest_model, latest_version = self.gossip.get_global_model()
-        
-        if latest_model and latest_version > self.current_round:
-            logger.info(f"Using latest model from gossip network (version {latest_version})")
-            parameters = latest_model
-            
-        return super().configure_fit(server_round, parameters, client_manager)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Fault-Tolerant Flower Server")
